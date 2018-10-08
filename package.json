@@ -1,0 +1,25 @@
+{
+  "name": "@hungry/webpack-parallel",
+  "version": "0.0.1",
+  "description": "Dev friendly webpack builder and watcher",
+  "main": "src/index.ts",
+  "repository": "https://github.com/hungry-consulting/webpack-parallel",
+  "author": "Damian Baar <damian.baar@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "webpack-parallel": "./bin/webpack-parallel.ts"
+  },
+  "dependencies": {
+    "@hungry/babel-preset-cli": "~0.0.1",
+    "rxjs": "^6.3.3",
+    "ramda": "^0.25.0",
+    "word-wrap": "^1.2.3",
+    "ink": "^0.5.1",
+    "ink-box": "^0.1.0",
+    "ink-divider": "^1.1.1",
+    "ink-progress-bar": "^2.1.1",
+    "ink-spinner": "^2.0.0",
+    "yargs": "^12.0.2"
+  }
+}
