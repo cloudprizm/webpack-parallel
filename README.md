@@ -45,6 +45,6 @@ It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hung
 There is couple of implementation of parallel building for webpack, however I wanted to provide something dev oriented with correct error reporting without hacks.
 
 ## Caveats / TODO
-- [] think about compatibility with `webpack-dev-server` - for now, you can go with `nodemon` and observe your dist to restart server
-- [] provide scrollable report from workers - if there is a lot of things to log, sometimes UI becomes glitchy
-- [] couple of tests!
+- [ ] think about compatibility with `webpack-dev-server` - for now, you can go with `nodemon` and observe your dist to restart server
+- [ ] provide scrollable report from workers - if there is a lot of things to log, sometimes UI becomes glitchy
+- [ ] at least couple of tests
