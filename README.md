@@ -38,7 +38,7 @@ Options:
 ```
 
 ## How to use it
-It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hungry-consulting/webpack-parallel) - composable, typesafe webpack config, however it is not necessary.
+It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hungry-consulting/webpack-parts) - composable, typesafe webpack config, however it is not necessary.
 
 ## Selling points
 * reliable error handling
