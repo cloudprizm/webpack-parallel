@@ -6,6 +6,13 @@ Command line tool for running webpack multiple configurations written in typescr
 
 ## Install
 ```sh
+# global yarn
+yarn global @hungry/webpack-parallel
+
+# global npm
+npm install -g @hungry/webpack-parallel
+
+# or as dependency
 yarn add @hungry/webpack-parallel
 ```
 
@@ -45,6 +52,5 @@ It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hung
 There is couple of implementation of parallel building for webpack, however I wanted to provide something dev oriented with correct error reporting without hacks.
 
 ## Caveats / TODO
-- [ ] think about compatibility with `webpack-dev-server` - for now, you can go with `nodemon` and observe your dist to restart server
+- [ ] think about compatibility with `webpack-dev-server` - for now, you can go with `nodemon` and observe your out directory to restart server or with webpack plugin `post-compile-webpack-plugin` and do some magic there
 - [ ] provide scrollable report from workers - if there is a lot of things to log, sometimes UI becomes glitchy
-- [ ] at least couple of tests

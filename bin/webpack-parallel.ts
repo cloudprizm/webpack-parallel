@@ -16,7 +16,7 @@ const { bootstrap } = require('@hungry/babel-preset-cli')
 bootstrap()
 
 const yargs = require('yargs')
-const { webpackRunCommand } = require('../dist/index.ts')
+const { webpackRunCommand } = require('../dist/index.js')
 
 webpackRunCommand.command = 'run'
 

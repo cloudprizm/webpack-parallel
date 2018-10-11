@@ -2,8 +2,17 @@
   "name": "@hungry/webpack-parallel",
   "version": "0.0.1",
   "description": "Dev friendly webpack builder and watcher",
-  "module": "src/index.ts",
   "main": "dist/index.js",
+  "module": "src/index.ts",
+  "babel": {
+    "presets": [
+      "@hungry/babel-preset-cli"
+    ]
+  },
+  "scripts": {
+    "build:babel": "babel src/** -d dist --extensions '.ts','.tsx'",
+    "prepublish": "yarn build:babel"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/hungry-consulting/webpack-parallel"
@@ -15,7 +24,6 @@
     "webpack-parallel": "./bin/webpack-parallel.ts"
   },
   "dependencies": {
-    "@hungry/babel-preset-cli": "^0.0.1",
     "chalk": "^2.4.1",
     "figlet": "^1.2.0",
     "ink": "^0.5.1",
@@ -28,6 +36,10 @@
     "webpack": "^4.20.2",
     "word-wrap": "^1.2.3",
     "yargs": "^12.0.2"
+  },
+  "devDependencies": {
+    "@hungry/babel-preset-cli": "^0.0.1",
+    "@babel/cli": "^7.0.0"
   },
   "homepage": "https://github.com/hungry-consulting/webpack-parallel"
 }
