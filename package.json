@@ -2,6 +2,10 @@
   "name": "@hungry/webpack-parallel",
   "version": "0.0.2",
   "description": "Dev friendly webpack builder and watcher",
+  "keywords": [
+    "webpack",
+    "parallel"
+  ],
   "main": "dist/index.js",
   "module": "src/index.ts",
   "babel": {
@@ -39,7 +43,11 @@
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
-    "@hungry/babel-preset-cli": "^0.0.1"
+    "@hungry/babel-preset-cli": "~0.0.1"
+  },
+  "bugs": {
+    "url": "https://github.com/hungry-consulting/webpack-parallel/issues",
+    "email": "project@hostname.com"
   },
   "homepage": "https://github.com/hungry-consulting/webpack-parallel"
 }
