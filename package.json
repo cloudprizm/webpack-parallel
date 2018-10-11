@@ -2,10 +2,11 @@
   "name": "@hungry/webpack-parallel",
   "version": "0.0.1",
   "description": "Dev friendly webpack builder and watcher",
-  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/damianbaar/catch-the-sun/tree/master/packages/opensource/webpack-parallel"
+    "url": "https://github.com/hungry-consulting/webpack-parallel"
   },
   "author": "Damian Baar <damian.baar@gmail.com>",
   "license": "MIT",
@@ -14,7 +15,7 @@
     "webpack-parallel": "./bin/webpack-parallel.ts"
   },
   "dependencies": {
-    "@hungry/babel-preset-cli": "~0.0.1",
+    "@hungry/babel-preset-cli": "^0.0.1",
     "chalk": "^2.4.1",
     "figlet": "^1.2.0",
     "ink": "^0.5.1",
@@ -28,5 +29,5 @@
     "word-wrap": "^1.2.3",
     "yargs": "^12.0.2"
   },
-  "homepage": "https://github.com/damianbaar/catch-the-sun/tree/master/packages/opensource/webpack-parallel"
+  "homepage": "https://github.com/hungry-consulting/webpack-parallel"
 }

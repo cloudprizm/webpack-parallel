@@ -6,7 +6,7 @@ const clearScreen = () => process.stdout.write('\033c\033[3J')
 const getAppName = () => textSync('Webpack parallel', { font: 'Doom' })
 const drawBanner = () => {
   const banner = getAppName()
-  const by = `by Damian Baar`
+  const by = `by @hungry`
 
   console.log(banner)
   console.log('\t'.repeat(8), by, '\n')
@@ -16,7 +16,7 @@ const { bootstrap } = require('@hungry/babel-preset-cli')
 bootstrap()
 
 const yargs = require('yargs')
-const { webpackRunCommand } = require('../src/index.ts')
+const { webpackRunCommand } = require('../dist/index.ts')
 
 webpackRunCommand.command = 'run'
 
