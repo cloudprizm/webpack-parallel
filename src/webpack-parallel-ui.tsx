@@ -2,37 +2,51 @@
 /** @jsxFrag h.fragment */
 
 import chalk from 'chalk'
-import { Color, Component, Text } from 'ink'
+import { h, Color, Component, Text } from 'ink'
 import Divider from 'ink-divider'
 import ProgressBar from 'ink-progress-bar'
 import Spinner from 'ink-spinner'
 
 import { cond, ifElse, isEmpty, pipe, prop, sortBy, uniq } from 'ramda'
-import { combineLatest, empty, Observable } from 'rxjs'
+import { combineLatest, empty, Observable, Subscription } from 'rxjs'
 import { startWith } from 'rxjs/operators'
 import wrap from 'word-wrap'
-import { Log, MinimalStats, ProgressPayload } from './webpack-parallel-builder.d'
 
-const { h } = require('ink')
+import { Log, MinimalStats, ProgressPayload, WatchPayload } from './worker-actions'
+
+// const { h } = require('ink') // need to track down why it is not able to take this from import
 
 const maxWidth = process.stdout.columns || 100
 const defaultWidth = Math.min(100, maxWidth)
 
 const sortFullLogs = pipe(
+  // @ts-ignore
   uniq,
   sortBy(prop('idx')),
 )
 
-const withDefault = defaultVal => ifElse(isEmpty, () => defaultVal, e => Boolean(e))
+const withDefault = (defaultVal?: boolean) => ifElse(isEmpty, () => defaultVal, e => Boolean(e))
 const withDefaultTrue = withDefault(true)
+
+type ProgressStream = Observable<ProgressPayload[]>
+type WatchStream = Observable<WatchPayload[]>
+type LogsStream = Observable<Log[]>
+type StatsStream = Observable<MinimalStats[]>
+
+interface InputStreams {
+  progress$: ProgressStream
+  watch$: WatchStream
+  logs$: LogsStream
+  stats$: StatsStream
+}
 
 interface Props {
   enableFullReport: boolean
   enableRecentActivity: boolean
-  progress: Observable<any>
-  watch: Observable<any>
-  logs: Observable<any>
-  stats: Observable<any>
+  progress?: ProgressStream
+  watch?: WatchStream
+  logs?: LogsStream
+  stats?: StatsStream
 }
 
 interface State {
@@ -46,15 +60,31 @@ interface State {
   logs: Log[]
 }
 
+interface WithStats {
+  stats?: MinimalStats[]
+}
+
 interface WithLogs {
   logs: Log[]
 }
 
-const RenderStatus = ({ stats, prefix, color }) =>
+interface WithCompilationResult {
+  stats: string[]
+}
+
+interface WithProgress {
+  progress: ProgressPayload[]
+}
+
+interface WithTitle {
+  title?: string
+}
+
+const RenderStatus = ({ stats, prefix, color }: WithCompilationResult & { prefix: string, color: string }) =>
   <div>
     {stats.length > 0
       ? <Text>{wrap(stats.map((m, i) =>
-        chalk`{${color} {bold.rgb(0,0,0) ${i}. ${prefix}}}\n${m}`)
+        chalk`{${color} {bold.rgb(0,0,0) ${i.toString()}. ${prefix}}}\n${m}`)
         .reduce((acc, message) => `${acc}\n${message}`, ''))
       }</Text>
       : <Text green>{wrap(`No ${prefix}s`)}</Text>
@@ -73,8 +103,8 @@ const WaitingForWorkers = () =>
     <Color> waiting for workers</Color>
   </div>
 
-const Stats = ({ stats, title }: { stats: MinimalStats[] }) =>
-  <div>{stats.map(workerStats =>
+const Stats = ({ stats, title }: WithStats & WithTitle) =>
+  <div>{stats && stats.map(workerStats =>
     <div>
       <Divider
         titleColor={getColor(workerStats)}
@@ -95,9 +125,8 @@ const Stats = ({ stats, title }: { stats: MinimalStats[] }) =>
     </div>
   )}</div>
 
-// TODO this calculation should be somehwere outside
-const RenderProgress = ({ progress }) => {
-  const prepareStatus = (d) => [
+const RenderProgress = ({ progress }: WithProgress) => {
+  const prepareStatus = (d: ProgressPayload) => [
     chalk`{bgGreenBright {black [step]}} ${d.message}`,
     d.step && chalk`{gray [status] ${d.step}}`,
   ].filter(Boolean).join(' ')
@@ -128,14 +157,14 @@ const LogEntry = ({ log }: { log: Log }) => <div>
   >{`[${log.idx}]: ${log.data}`}</Text>
 </div>
 
-const RecentWorkerActivity = ({ title, logs }: WithLogs) => <div>
+const RecentWorkerActivity = ({ title, logs }: WithLogs & WithTitle) => <div>
   <Divider title={'Recent activity from workers' || title} width={defaultWidth} padding={0} />
   {logs.map(log => <LogEntry log={log} />)}
 </div>
 
 const FullReportFromRun = ({ logs }: WithLogs) => <div>
   <Divider title="Full activity from workers" width={defaultWidth} padding={0} />
-  <div>{sortFullLogs(logs).map(log => <LogEntry log={log} />)}</div>
+  <div>{sortFullLogs(logs).map((log: Log) => <LogEntry log={log} />)}</div>
 </div>
 
 const renderRecentActivity = cond([
@@ -158,40 +187,41 @@ const renderWatcherStats = cond([
   ]
 ])
 
-const makeSafeStream = (stream) => stream || empty()
+const makeSafeStream = (stream?: Observable<any>) => stream || empty()
 // TODO 
 // 1) add full log report when running with watcher - scrollable list
-export class WorkersStatus extends Component<Props, State> {
-  private progress
-  private watch
-  private logs
-  private stats
+export class WorkersStatus extends Component<Props, State> implements InputStreams {
+  public progress$: Observable<ProgressPayload[]>
+  public watch$: Observable<WatchPayload[]>
+  public stats$: Observable<MinimalStats[]>
+  public logs$: Observable<Log[]>
+  public state: State
 
-  private dispose
+  private subscription?: Subscription
 
   constructor(props: Props) {
     super(props)
 
-    const defaults = {
+    const defaults: State = {
       enableFullReport: withDefaultTrue(props.enableFullReport),
       enableRecentActivity: withDefaultTrue(props.enableRecentActivity),
       watcherStats: [],
       progress: [],
       watch: !!props.watch,
-      stats: null,
-      allLogs: [],
-      logs: []
+      stats: undefined,
+      allLogs: [] as Log[],
+      logs: [] as Log[]
     }
 
-    this.progress = makeSafeStream(props.progress).pipe(startWith(defaults.progress))
-    this.stats = makeSafeStream(props.stats).pipe(startWith(defaults.stats))
-    this.logs = makeSafeStream(props.logs).pipe(startWith(defaults.logs))
-    this.watch = makeSafeStream(props.watch).pipe(startWith(defaults.watcherStats))
+    this.progress$ = makeSafeStream(props.progress).pipe(startWith(defaults.progress))
+    this.stats$ = makeSafeStream(props.stats).pipe(startWith(defaults.stats))
+    this.logs$ = makeSafeStream(props.logs).pipe(startWith(defaults.logs))
+    this.watch$ = makeSafeStream(props.watch).pipe(startWith(defaults.watcherStats))
 
     this.state = { ...defaults }
   }
 
-  public render(props, state) {
+  public render(props: Props, state: State) {
     return <div>
       {renderWhen(state)}
       {renderRecentActivity(state)}
@@ -201,22 +231,29 @@ export class WorkersStatus extends Component<Props, State> {
   }
 
   public componentDidMount() {
-    const inputs = combineLatest(this.progress, this.stats, this.logs, this.watch)
+    const inputs = combineLatest(
+      this.progress$,
+      this.stats$,
+      this.logs$,
+      this.watch$,
+    )
 
     const connect = inputs.subscribe(([progress, stats, logs, watcherStats]) => {
-      this.setState({
+      // @ts-ignore - workaround -> not sure why tsc is not happy about this - setState is missing
+      const setState = this.setState
+      setState({
         progress,
         stats,
         logs,
+        watcherStats,
         allLogs: this.state.allLogs.concat(logs),
-        watcherStats
       })
     })
 
-    this.dispose = connect.unsubscribe
+    this.subscription = connect
   }
 
   public componentWillUnmount() {
-    this.dispose()
+    if (this.subscription) this.subscription.unsubscribe()
   }
 }

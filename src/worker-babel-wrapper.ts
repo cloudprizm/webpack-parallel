@@ -5,4 +5,4 @@ const yargs = require('yargs')
 const { runWebpack } = require('./webpack-parallel-builder')
 
 const { config, workerIndex, watch } = yargs.argv
-runWebpack({ path: config, workerIndex, watch })
+runWebpack({ config, workerIndex, watch })

@@ -2,23 +2,33 @@ import webpack from 'webpack'
 import { isEmpty, pipe } from 'ramda'
 import { interval, merge, Subject } from 'rxjs'
 import { buffer, distinctUntilChanged } from 'rxjs/operators'
-import { Action } from './worker-actions'
+import { Worker } from 'cluster'
+import {
+  Action,
+  WebpackConfig,
+  GenericAction,
+  WebpackWorkerInput,
+  EndPayload,
+  WatchPayload,
+  ProgressPayload
+} from './worker-actions'
 
-const sendMessage = msg => process.send(msg)
+const sendMessage = (msg: Array<Partial<GenericAction>>) => ((process as unknown) as Worker).send(msg)
 
-const mkProgressPayload = (percent, message, step, active) =>
-  ({ percent, message, step, active, action: Action.progress })
+const mkProgressPayload =
+  (percent?: number, message?: string, step?: string, active?: string, moduleName?: string): Partial<ProgressPayload> =>
+    ({ percent, message, step, active, moduleName, action: Action.progress })
 
-const mkEndPayload = (stats = {}) =>
+const mkEndPayload = (stats = {}): Partial<EndPayload> =>
   ({ ...stats, action: Action.end })
 
-const mkWatchPayload = (stats = {}) =>
+const mkWatchPayload = (stats = {}): Partial<WatchPayload> =>
   ({ ...stats, action: Action.watch })
 
 // INFO: runner is accepting array of events
 const sendEndAction = pipe(mkEndPayload, Array.of, sendMessage)
 
-const notifyAboutSomethingUnexpected = (error) => {
+const notifyAboutSomethingUnexpected = (error: Error) => {
   console.error(error.message)
 
   sendEndAction({
@@ -27,8 +37,10 @@ const notifyAboutSomethingUnexpected = (error) => {
   })
 }
 
-const runAsSingleCompilation = (config) => new Promise((res) => {
-  const { progress, watcher: end } = getStreamsForwarders()
+const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res) => {
+  const { progress, watcher: end } = getStreamsForwarders<ProgressPayload, EndPayload>()
+
+  if (!config.plugins) config.plugins = []
 
   config.plugins.push(new webpack.ProgressPlugin((...args) =>
     progress.next(mkProgressPayload(...args))
@@ -36,25 +48,25 @@ const runAsSingleCompilation = (config) => new Promise((res) => {
 
   webpack(config)
     .run((err, stats) => {
-      if (err) throw new Error(err)
-      end.next(mkEndPayload(stats.toJson('minimal')))
+      if (err) throw err
+      end.next(mkEndPayload(stats.toJson('minimal'))) // cool error!
       res()
     })
 })
 
-const progressCompare = (a, b) =>
+const progressCompare = (a: Partial<ProgressPayload>, b: Partial<ProgressPayload>) =>
   a.percent === b.percent && a.step === b.step && a.message === b.message
 
-const getStreamsForwarders = () => {
-  const progress = new Subject()
-  const watcher = new Subject()
+const getStreamsForwarders = <K, T>() => {
+  const progress = new Subject<Partial<K>>()
+  const watcher = new Subject<Partial<T>>()
 
   const all = merge(
     progress.pipe(distinctUntilChanged(progressCompare)),
     watcher.pipe(distinctUntilChanged()),
   ).pipe(buffer(interval(100)))
 
-  const subscriber = all.subscribe((data) => !isEmpty(data) && process.send(data))
+  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
   return {
     progress,
     watcher,
@@ -62,14 +74,15 @@ const getStreamsForwarders = () => {
   }
 }
 
-const runAsWatcher = (config) => new Promise(() => {
+const runAsWatcher = (config: WebpackConfig) => new Promise(() => {
   config.watch = true
   const watchOptions = {
     aggregateTimeout: 500,
     poll: 500,
   }
+  const { progress, watcher } = getStreamsForwarders<ProgressPayload, WatchPayload>()
 
-  const { progress, watcher } = getStreamsForwarders()
+  if (!config.plugins) config.plugins = []
 
   config.plugins.push(new webpack.ProgressPlugin((...args) =>
     progress.next(mkProgressPayload(...args))
@@ -77,14 +90,14 @@ const runAsWatcher = (config) => new Promise(() => {
 
   webpack(config)
     .watch(watchOptions, (err, stats) => {
-      if (err) throw new Error(err)
+      if (err) throw err
 
       progress.next(mkProgressPayload(1, 'done'))
       watcher.next(mkWatchPayload(stats.toJson('minimal')))
     })
 })
 
-export const runWebpack = ({ path, workerIndex, watch }) => {
+export const runWebpack = ({ path, workerIndex, watch }: WebpackWorkerInput) => {
   const configs = require(path)
   const isPromise = !!configs.default.then
   const promiseRun = isPromise ? configs.default : Promise.resolve(configs.default)
@@ -94,6 +107,6 @@ export const runWebpack = ({ path, workerIndex, watch }) => {
     .on('uncaughtException', notifyAboutSomethingUnexpected)
 
   return promiseRun
-    .then(configs => configs[workerIndex])
-    .then(config => watch ? runAsWatcher(config) : runAsSingleCompilation(config))
+    .then((configs: WebpackConfig[]) => configs[workerIndex])
+    .then((config: WebpackConfig) => watch ? runAsWatcher(config) : runAsSingleCompilation(config))
 }

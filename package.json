@@ -7,15 +7,14 @@
     "parallel"
   ],
   "main": "dist/index.js",
-  "module": "src/index.ts",
   "babel": {
     "presets": [
       "@hungry/babel-preset-cli"
     ]
   },
   "scripts": {
-    "build:babel": "babel src/** -d dist --extensions '.ts','.tsx'",
-    "prepublish": "yarn build:babel"
+    "build": "tsc --build tsconfig.json",
+    "prepublish": "yarn build"
   },
   "repository": {
     "type": "git",
@@ -47,7 +46,7 @@
   },
   "bugs": {
     "url": "https://github.com/hungry-consulting/webpack-parallel/issues",
-    "email": "project@hostname.com"
+    "email": "damian.baar@gmail.com"
   },
   "homepage": "https://github.com/hungry-consulting/webpack-parallel"
 }
