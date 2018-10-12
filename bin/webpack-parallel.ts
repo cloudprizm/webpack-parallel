@@ -13,7 +13,9 @@ const drawBanner = () => {
 }
 
 const { bootstrap } = require('@hungry/babel-preset-cli')
-bootstrap()
+bootstrap({
+  extensions: [".ts", ".tsx", ".js", ".jsx"]
+})
 
 const yargs = require('yargs')
 const { webpackRunCommand } = require('../dist/index.js')
