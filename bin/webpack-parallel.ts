@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 
 const { textSync } = require('figlet')
+const { resolve } = require('path')
 
 const clearScreen = () => process.stdout.write('\033c\033[3J')
 const getAppName = () => textSync('Webpack parallel', { font: 'Doom' })
@@ -13,8 +14,10 @@ const drawBanner = () => {
 }
 
 const { bootstrap } = require('@hungry/babel-preset-cli')
+
 bootstrap({
-  extensions: [".ts", ".tsx", ".js", ".jsx"]
+  extensions: [".ts", ".tsx", ".js", ".jsx"],
+  cwd: resolve(__dirname, '..')
 })
 
 const yargs = require('yargs')
