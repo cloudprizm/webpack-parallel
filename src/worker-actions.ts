@@ -1,4 +1,5 @@
 import { Configuration as WebpackConfig } from 'webpack'
+import { range, toPairs, map, pipe, view, lensIndex, zip, fromPairs, KeyValuePair } from 'ramda'
 
 export enum Action {
   start = 'start',
@@ -8,11 +9,12 @@ export enum Action {
 }
 
 export interface AnnotatedByMaster {
-  id?: number
-  idx?: number
-  pid?: number
+  id: number
+  idx: number
+  pid: number
+  name?: string
 }
-export interface Log {
+export interface Log extends AnnotatedByMaster {
   idx: number
   data: string
   type: 'error' | 'log'
@@ -21,6 +23,8 @@ export interface Log {
 export interface GenericAction extends AnnotatedByMaster {
   action: Action
 }
+
+export type WorkerEvents = GenericAction[]
 export interface ProgressPayload extends GenericAction {
   moduleName: string
   percent: number
@@ -29,7 +33,7 @@ export interface ProgressPayload extends GenericAction {
   active: string
 }
 
-export interface MinimalStats {
+export interface MinimalStats extends GenericAction {
   id: number
   pid: number
   errors: string[]
@@ -38,11 +42,11 @@ export interface MinimalStats {
   filteredModules: number
 }
 
-export interface EndPayload extends Required<GenericAction>, MinimalStats {
+export interface EndPayload extends GenericAction, MinimalStats {
   action: Action.end
 }
 
-export interface WatchPayload extends Required<GenericAction>, MinimalStats {
+export interface WatchPayload extends GenericAction, MinimalStats {
   action: Action.watch
 }
 
@@ -68,9 +72,32 @@ export interface WebpackWorkerInput {
   watch: boolean
 }
 
-export const resolveConfigFromFile = (configPath: string): Promise<WebpackConfig[]> => {
+export type Configs = KeyValuePair<string, WebpackConfig>
+
+export const first = view(lensIndex(0))
+export const second = view(lensIndex(1))
+export const third = view(lensIndex(2))
+export const fourth = view(lensIndex(3))
+
+export const getConfigDefaultNames = (friendlyNames: string[] | undefined, count: number) =>
+  friendlyNames
+    ? friendlyNames
+    : range(0, count).map(x => `C${x}`)
+
+export const resolveConfigFromFileWithNames = (configPath: string): Promise<Configs> => {
   const config = require(configPath)
+  const friendlyNames = config.configNames
+
   const isPromise = !!config.default.then
   return (isPromise ? config.default : Promise.resolve(config.default))
     .then((c: ExternalWebpackConfig) => Array.isArray(c) ? c : [c])
+    .then((configs: WebpackConfig[]) =>
+      fromPairs<WebpackConfig>(
+        zip<string, WebpackConfig>(
+          getConfigDefaultNames(friendlyNames, configs.length), configs))
+    )
 }
+
+export const resolveConfigFromFile = (configPath: string): Promise<WebpackConfig[]> =>
+  resolveConfigFromFileWithNames(configPath)
+    .then(pipe(toPairs, map(second)))

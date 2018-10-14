@@ -26,6 +26,10 @@ webpack-parallel run --config your_config --fullReport
 
 ```js
 const myConfigs = [...] // array of webpack configs
+
+// optional - if you'd see named configs instead of seeing indexes
+export const configNames = ['friendly-config-name-1', 'friendly-config-name-2'] 
+
 export default new Promise(...)
   .then(...) // do some clean up, any shared operations before build or watch
   .then(()) => myConfigs)

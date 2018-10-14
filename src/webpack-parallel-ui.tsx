@@ -12,7 +12,7 @@ import { combineLatest, empty, Observable, Subscription } from 'rxjs'
 import { startWith } from 'rxjs/operators'
 import wrap from 'word-wrap'
 
-import { Log, MinimalStats, ProgressPayload, WatchPayload } from './worker-actions'
+import { Log, AnnotatedByMaster, MinimalStats, ProgressPayload, WatchPayload } from './worker-actions'
 
 const { h } = require('ink') // I dont like it but well ...
 const maxWidth = process.stdout.columns || 100
@@ -102,12 +102,15 @@ const WaitingForWorkers = () =>
     <Color> waiting for workers</Color>
   </div>
 
+const getTitle = ({ title, stats }: { stats: AnnotatedByMaster } & WithTitle) =>
+  `${title || 'Worker stats'}: ${stats.name ? `${stats.name.toUpperCase()},` : ""} id: ${stats.id}, pid: ${stats.pid}`
+
 const Stats = ({ stats, title }: WithStats & WithTitle) =>
   <div>{stats && stats.map(workerStats =>
     <div>
       <Divider
         titleColor={getColor(workerStats)}
-        title={`${title || 'Worker stats'}, id: ${workerStats.id}, pid: ${workerStats.pid}`}
+        title={getTitle({ title, stats: workerStats })}
         width={defaultWidth}
         padding={0}
       />
@@ -133,7 +136,7 @@ const RenderProgress = ({ progress }: WithProgress) => {
   return <div>
     {progress.map(d => {
       return <div>
-        <Divider titleColor="green" title={`Worker, id: ${d.id}, pid: ${d.pid}`} width={defaultWidth} padding={0} />
+        <Divider titleColor="green" title={getTitle({ stats: d })} width={defaultWidth} padding={0} />
         <div>
           <ProgressBar character="|" percent={d.percent} left={0} right={maxWidth - defaultWidth} />
           <Text>{Math.round(d.percent * 100)}</Text>
@@ -153,7 +156,7 @@ const LogEntry = ({ log }: { log: Log }) => <div>
   <Text
     white={log.type === 'log'}
     red={log.type === 'error'}
-  >{`[${log.idx}]: ${log.data}`}</Text>
+  >{`[${log.name}]: ${log.data}`}</Text>
 </div>
 
 const RecentWorkerActivity = ({ title, logs }: WithLogs & WithTitle) => <div>
@@ -180,9 +183,7 @@ const renderFullReportAfterRun = cond([
 const renderWatcherStats = cond([
   [
     (state) => state.watcherStats.length > 0,
-    (state: State) => <Stats
-      stats={state.watcherStats}
-    />
+    (state: State) => <Stats stats={state.watcherStats} />
   ]
 ])
 
