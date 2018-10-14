@@ -18,7 +18,7 @@ const sendMessage = (msg: Array<Partial<GenericAction>>) => ((process as unknown
 
 const mkProgressPayload =
   (percent?: number, message?: string, step?: string, active?: string, moduleName?: string): Partial<ProgressPayload> =>
-    ({ percent, message, step, active, action: Action.progress })
+    ({ percent, message, step, active, moduleName, action: Action.progress })
 
 const mkEndPayload = (stats = {}): Partial<EndPayload> =>
   ({ ...stats, action: Action.end })
