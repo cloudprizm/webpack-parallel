@@ -76,7 +76,7 @@ const connectToWorkers =
       const _errors$ = pipeToSubject(worker.stderr, { type: 'error', ...workerDetails })
 
       const _start$ = workerOut$.pipe(getLastFromStream(Action.start), filter(Boolean))
-      const _end$ = workerOut$.pipe(getLastFromStream(Action.end), filter(Boolean), take(1))
+      const _end$ = workerOut$.pipe(getLastFromStream(Action.end), filter(Boolean))
       const _watch$ = workerOut$.pipe(getLastFromStream(Action.watch), filter(Boolean))
       const _progress$ = workerOut$.pipe(getLastFromStream(Action.progress), filter(Boolean))
 
@@ -121,7 +121,7 @@ export const runWebpackConfigs =
         const workersProgress$ = combineLatest<ProgressPayload[]>(progressStreams)
 
         const endsStreams = streams.map(([_, end]) => end)
-        const workersEnds$ = combineLatest<EndPayload[]>(endsStreams)
+        const workersEnds$ = combineLatest<EndPayload[]>(endsStreams).pipe(take(1))
 
         const logsStreams = streams.map(([_, __, logs]) => logs)
         const logs$ = combineLatest<Log[]>(logsStreams)
