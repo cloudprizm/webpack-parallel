@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 
 const { textSync } = require('figlet')
+const { resolve } = require('path')
 
 const clearScreen = () => process.stdout.write('\033c\033[3J')
 const getAppName = () => textSync('Webpack parallel', { font: 'Doom' })
@@ -12,14 +13,12 @@ const drawBanner = () => {
   console.log('\t'.repeat(8), by, '\n')
 }
 
-const { bootstrap } = require('@hungry/babel-preset-cli')
-bootstrap()
-
+const { webpackRunCommand, enableRuntimeTranspilation } = require('../dist/index.js')
 const yargs = require('yargs')
-const { webpackRunCommand } = require('../dist/index.js')
 
 webpackRunCommand.command = 'run'
 
+enableRuntimeTranspilation()
 clearScreen()
 drawBanner()
 

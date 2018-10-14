@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "declaration": true,
+    "target": "es5",
+    "jsx": "preserve",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "emitDeclarationOnly": true,
+    "noImplicitReturns": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "allowSyntheticDefaultImports": true,
+    "noUnusedParameters": false,
+    "typeRoots": [
+      "./typings"
+    ],
+    "noFallthroughCasesInSwitch": true,
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "esnext"
+    ]
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

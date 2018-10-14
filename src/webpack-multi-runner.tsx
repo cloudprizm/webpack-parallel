@@ -1,34 +1,38 @@
 /** @jsx Ink.h */
 /** @jsxFrag Ink.h.fragment */
 
-import { fork } from 'child_process'
-import { Transform } from 'stream'
+import { fork, ChildProcess } from 'child_process'
+import { Readable, Transform } from 'stream'
 
-import Ink from 'ink'
+import * as Ink from 'ink'
 import { join, resolve } from 'path'
-import { combineLatest, fromEvent, Subject } from 'rxjs'
-import { filter, map, merge, startWith, take, tap, delay } from 'rxjs/operators'
+import { combineLatest, fromEvent, Subject, Observable } from 'rxjs'
+import { filter, map, merge, startWith, take } from 'rxjs/operators'
 
-import { view, lensIndex, pipe, propEq, takeLast } from 'ramda'
+import { values, keys, last, propEq } from 'ramda'
 
 import { WorkersStatus } from './webpack-parallel-ui'
-import { Action } from './worker-actions'
+import {
+  first,
+  Action,
+  WebpackConfig,
+  WorkerEvents,
+  RunnerInput,
+  WorkerInput,
+  ProgressPayload,
+  EndPayload,
+  Log,
+  WatchPayload,
+  resolveConfigFromFileWithNames,
+} from './worker-actions'
 
-const isArray = Array.isArray
 
-export const resolveConfigFromFile = (configPath) => {
-  const config = require(configPath)
-  const isPromise = !!config.default.then
-  return (isPromise ? config.default : Promise.resolve(config.default))
-    .then(c => isArray(c) ? c : [c])
-}
-
-const closeWorkers = (workers) => {
+const closeWorkers = (workers: ChildProcess[]) => {
   workers.forEach(w => w.kill())
   process.exit()
 }
 
-const pipeToSubject = (stream, extras) => {
+const pipeToSubject = (stream: Readable, extras: { [key in string]: any }) => {
   const stream$ = new Subject()
   stream.pipe(new Transform({
     transform: (data, _, next) => {
@@ -39,72 +43,92 @@ const pipeToSubject = (stream, extras) => {
   return stream$
 }
 
-const runWorker = ({ configPath, workerFile, watch, cwd }) => (_, idx) =>
-  fork(workerFile, [
-    '--config', configPath,
-    '--worker-index', idx.toString(),
-    watch && '--watch'
-  ].filter(Boolean), {
-      cwd,
-      env: process.env,
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-    })
+const runWorker = ({ config: configPath, workerFile, watch, cwd }: WorkerInput) =>
+  (_: WebpackConfig, idx: number): ChildProcess =>
+    fork(workerFile, ([
+      '--config', configPath,
+      '--worker-index', idx.toString(),
+      '--process-cwd', cwd,
+      watch && '--watch'
+    ] as ReadonlyArray<string>).filter(Boolean), {
+        cwd,
+        env: process.env,
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      })
 
-const connectToWorkers = (worker, idx) => {
-  const workerDetails = { id: idx, idx, pid: worker.pid }
-  const workerOut$ = fromEvent(worker, 'message').pipe(
-    map(d => isArray(d) ? first(d) : d), // because of fromEvent -> sending array [obj, undefined]
-    map(events => events.map(event => ({ ...event, ...workerDetails }))),
-  )
 
-  const getAction = propEq('action')
-  const _logs$ = pipeToSubject(worker.stdout, { type: 'log', ...workerDetails })
-  const _errors$ = pipeToSubject(worker.stderr, { type: 'error', ...workerDetails })
+const getAction = propEq('action')
 
-  const getLast = action => map(arr => pipe(takeLast(1), first)(arr.filter(getAction(action))))
+const getLastFromStream = (action: string) =>
+  map((arr: WorkerEvents) => last(arr.filter(getAction(action))))
 
-  const _start$ = workerOut$.pipe(getLast(Action.start), filter(Boolean))
-  const _end$ = workerOut$.pipe(getLast(Action.end), filter(Boolean))
-  const _watch$ = workerOut$.pipe(getLast(Action.watch), filter(Boolean))
-  const _progress$ = workerOut$.pipe(getLast(Action.progress), filter(Boolean))
+const connectToWorkers =
+  (workersNames: string[]) =>
+    (worker: ChildProcess, idx: number): [ChildProcess, Array<Observable<any>>] => {
+      const workerDetails = { id: idx, idx, pid: worker.pid, name: workersNames[idx] }
+      const workerOut$ = fromEvent(worker, 'message').pipe(
+        // because of fromEvent -> sending array [obj, undefined]
+        map(d => (Array.isArray(d) ? first(d) : d) as WorkerEvents),
+        map((events: WorkerEvents) => events.map(event => ({ ...event, ...workerDetails }))),
+      )
 
-  // using startWith for logs as latter on combineLatest is used
-  // - worker is not force to log any data, so in such case combineLatest won't run
-  // I need array there
-  const elapsed = process.hrtime()
+      const _logs$ = pipeToSubject(worker.stdout, { type: 'log', ...workerDetails })
+      const _errors$ = pipeToSubject(worker.stderr, { type: 'error', ...workerDetails })
 
-  return [
-    _progress$.pipe(startWith({ action: Action.progress, percent: 0, message: 'Ready steady go!', ...workerDetails })),
-    _end$,
-    _logs$.pipe(
-      merge(_errors$),
-      startWith({ ...workerDetails, type: 'log', data: 'doing hard work for you... ' }),
-      merge(_end$.pipe(map(() =>
-        ({ ...workerDetails, type: 'log', data: `finished after: ${process.hrtime(elapsed)}` }))))
-    ),
-    _watch$,
-    _start$,
-  ]
-}
+      const _start$ = workerOut$.pipe(getLastFromStream(Action.start), filter(Boolean))
+      const _end$ = workerOut$.pipe(getLastFromStream(Action.end), filter(Boolean))
+      const _watch$ = workerOut$.pipe(getLastFromStream(Action.watch), filter(Boolean))
+      const _progress$ = workerOut$.pipe(getLastFromStream(Action.progress), filter(Boolean))
+
+      const elapsed = process.hrtime()
+      const progressStartWith = startWith({
+        action: Action.progress,
+        percent: 0,
+        message: 'Ready steady go!',
+        ...workerDetails
+      })
+
+      return [worker, [
+        _progress$.pipe(progressStartWith),
+        _end$,
+        // using startWith for logs as latter on combineLatest is used
+        // - worker is not force to log any data, so in such case combineLatest won't run
+        _logs$.pipe(
+          merge(_errors$),
+          startWith({ ...workerDetails, type: 'log', data: 'doing hard work for you... ' }),
+          merge(_end$.pipe(map(() =>
+            ({ ...workerDetails, type: 'log', data: `finished after: ${process.hrtime(elapsed)}` }))))
+        ),
+        _watch$,
+        _start$,
+      ]]
+    }
 
 process.on('SIGINT', () => process.exit())
 
-// tupple destructure
-const first = view(lensIndex(0))
-const second = view(lensIndex(1))
-const third = view(lensIndex(2))
-const fourth = view(lensIndex(3))
-
 export const runWebpackConfigs =
-  ({ config, workerFile, watch, fullReport, silent, cwd }) =>
-    resolveConfigFromFile(config)
+  ({ config, workerFile, watch, fullReport, silent, cwd }: RunnerInput) =>
+    resolveConfigFromFileWithNames(config)
       .then(resolvedConfigs => {
-        const workers = resolvedConfigs.map(runWorker({ configPath: config, workerFile, watch, cwd }))
-        const promisifyWorkers = workers.map(connectToWorkers)
-        const workersProgress$ = combineLatest(promisifyWorkers.map(first))
-        const workersEnds$ = combineLatest(promisifyWorkers.map(second)).pipe(take(1))
-        const logs$ = combineLatest(promisifyWorkers.map(third))
-        const workersWatch$ = combineLatest(promisifyWorkers.map(fourth))
+        const workers = (values(resolvedConfigs) as WebpackConfig[]).map(runWorker({ config, workerFile, watch, cwd }))
+        const friendlyNames = keys(resolvedConfigs) as string[]
+        return workers.map(connectToWorkers(friendlyNames))
+      })
+      .then(workersWithStreams => {
+        const workers = workersWithStreams.map(([w]) => w)
+        const streams = workersWithStreams.map(([_, s]) => s)
+        const progressStreams = streams.map(([progress]) => progress)
+        const workersProgress$ = combineLatest<ProgressPayload[]>(progressStreams)
+
+        const endsStreams = streams.map(([_, end]) => end)
+        const workersEnds$ = combineLatest<EndPayload[]>(endsStreams).pipe(take(1))
+
+        const logsStreams = streams.map(([_, __, logs]) => logs)
+        const logs$ = combineLatest<Log[]>(logsStreams)
+
+        const watchStreams = streams.map(([_, __, ___, watcher]) => watcher)
+        const workersWatch$ = combineLatest<WatchPayload[]>(watchStreams)
+
         const unmount = Ink.render(<WorkersStatus
           progress={workersProgress$}
           stats={workersEnds$}
@@ -134,13 +158,13 @@ export const webpackRunCommand = {
   builder: {
     config: { default: '', type: 'string', demand: true },
     cwd: { default: process.cwd() },
-    workerFile: { default: join(__dirname, './worker-babel-wrapper.ts') },
+    workerFile: { default: join(__dirname, './worker-babel-wrapper.js') },
     fullReport: { default: false },
     silent: { default: false },
     watch: { default: false },
     runWorker: { default: [-1] } // TODO specify worker to run
   },
-  handler: (args) => {
+  handler: (args: RunnerInput) => {
     if (!args.config) return console.error('Please define --config options') // yargs demand is not validating correctly
     return runWebpackConfigs({ ...args, config: resolve(args.cwd, args.config) })
   }
