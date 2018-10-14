@@ -2,7 +2,7 @@
 /** @jsxFrag h.fragment */
 
 import chalk from 'chalk'
-import { h, Color, Component, Text } from 'ink'
+import { Color, Component, Text } from 'ink'
 import Divider from 'ink-divider'
 import ProgressBar from 'ink-progress-bar'
 import Spinner from 'ink-spinner'
@@ -14,8 +14,7 @@ import wrap from 'word-wrap'
 
 import { Log, MinimalStats, ProgressPayload, WatchPayload } from './worker-actions'
 
-// const { h } = require('ink') // need to track down why it is not able to take this from import
-
+const { h } = require('ink') // I dont like it but well ...
 const maxWidth = process.stdout.columns || 100
 const defaultWidth = Math.min(100, maxWidth)
 
@@ -240,7 +239,7 @@ export class WorkersStatus extends Component<Props, State> implements InputStrea
 
     const connect = inputs.subscribe(([progress, stats, logs, watcherStats]) => {
       // @ts-ignore - workaround -> not sure why tsc is not happy about this - setState is missing
-      const setState = this.setState
+      const setState = this.setState.bind(this)
       setState({
         progress,
         stats,

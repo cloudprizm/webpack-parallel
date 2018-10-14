@@ -38,7 +38,8 @@ const notifyAboutSomethingUnexpected = (error: Error) => {
 }
 
 const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res) => {
-  const { progress, watcher: end } = getStreamsForwarders<ProgressPayload, EndPayload>()
+  const { progress, watcher: end, all } = getStreamsForwarders<ProgressPayload, EndPayload>()
+  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
 
   if (!config.plugins) config.plugins = []
 
@@ -50,6 +51,7 @@ const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res) => {
     .run((err, stats) => {
       if (err) throw err
       end.next(mkEndPayload(stats.toJson('minimal'))) // cool error!
+      subscriber.unsubscribe()
       res()
     })
 })
@@ -60,17 +62,15 @@ const progressCompare = (a: Partial<ProgressPayload>, b: Partial<ProgressPayload
 const getStreamsForwarders = <K, T>() => {
   const progress = new Subject<Partial<K>>()
   const watcher = new Subject<Partial<T>>()
-
   const all = merge(
     progress.pipe(distinctUntilChanged(progressCompare)),
     watcher.pipe(distinctUntilChanged()),
   ).pipe(buffer(interval(100)))
 
-  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
   return {
     progress,
     watcher,
-    subscriber
+    all
   }
 }
 
@@ -80,7 +80,8 @@ const runAsWatcher = (config: WebpackConfig) => new Promise(() => {
     aggregateTimeout: 500,
     poll: 500,
   }
-  const { progress, watcher } = getStreamsForwarders<ProgressPayload, WatchPayload>()
+  const { progress, watcher, all } = getStreamsForwarders<ProgressPayload, WatchPayload>()
+  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
 
   if (!config.plugins) config.plugins = []
 
@@ -94,11 +95,12 @@ const runAsWatcher = (config: WebpackConfig) => new Promise(() => {
 
       progress.next(mkProgressPayload(1, 'done'))
       watcher.next(mkWatchPayload(stats.toJson('minimal')))
+      subscriber.unsubscribe()
     })
 })
 
-export const runWebpack = ({ path, workerIndex, watch }: WebpackWorkerInput) => {
-  const configs = require(path)
+export const runWebpack = ({ config, workerIndex, watch }: WebpackWorkerInput) => {
+  const configs = require(config)
   const isPromise = !!configs.default.then
   const promiseRun = isPromise ? configs.default : Promise.resolve(configs.default)
 

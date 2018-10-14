@@ -4,7 +4,7 @@
 import { fork, ChildProcess } from 'child_process'
 import { Readable, Transform } from 'stream'
 
-import Ink from 'ink'
+import * as Ink from 'ink'
 import { join, resolve } from 'path'
 import { combineLatest, fromEvent, Subject } from 'rxjs'
 import { filter, map, merge, startWith, take } from 'rxjs/operators'
@@ -57,6 +57,7 @@ const runWorker = ({ config: configPath, workerFile, watch, cwd }: WorkerInput) 
     fork(workerFile, ([
       '--config', configPath,
       '--worker-index', idx.toString(),
+      '--process-cwd', cwd,
       watch && '--watch'
     ] as ReadonlyArray<string>).filter(Boolean), {
         cwd,
@@ -120,8 +121,6 @@ export const runWebpackConfigs =
         const workersEnds$ = combineLatest<EndPayload[]>(promisifyWorkers.map(second)).pipe(take(1))
         const logs$ = combineLatest<Log[]>(promisifyWorkers.map(third))
         const workersWatch$ = combineLatest<WatchPayload[]>(promisifyWorkers.map(fourth))
-
-        // @ts-ignore -> https://github.com/Microsoft/TypeScript/issues/19573
         const unmount = Ink.render(<WorkersStatus
           progress={workersProgress$}
           stats={workersEnds$}

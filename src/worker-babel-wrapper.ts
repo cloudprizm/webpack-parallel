@@ -1,8 +1,7 @@
-const { bootstrap } = require('@hungry/babel-preset-cli')
-bootstrap()
-
 const yargs = require('yargs')
 const { runWebpack } = require('./webpack-parallel-builder')
+const { enableRuntimeTranspilation } = require('./transpile-runtime')
+const { config, workerIndex, watch, processCwd } = yargs.argv
 
-const { config, workerIndex, watch } = yargs.argv
-runWebpack({ config, workerIndex, watch })
+enableRuntimeTranspilation()
+runWebpack({ config, workerIndex, watch: Boolean(watch), processCwd })

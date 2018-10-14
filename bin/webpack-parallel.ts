@@ -13,18 +13,12 @@ const drawBanner = () => {
   console.log('\t'.repeat(8), by, '\n')
 }
 
-const { bootstrap } = require('@hungry/babel-preset-cli')
-
-bootstrap({
-  extensions: [".ts", ".tsx", ".js", ".jsx"],
-  cwd: resolve(__dirname, '..')
-})
-
+const { webpackRunCommand, enableRuntimeTranspilation } = require('../dist/index.js')
 const yargs = require('yargs')
-const { webpackRunCommand } = require('../dist/index.js')
 
 webpackRunCommand.command = 'run'
 
+enableRuntimeTranspilation()
 clearScreen()
 drawBanner()
 

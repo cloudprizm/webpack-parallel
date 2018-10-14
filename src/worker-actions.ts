@@ -49,7 +49,6 @@ export interface WatchPayload extends Required<GenericAction>, MinimalStats {
 export { Configuration as WebpackConfig, Stats } from 'webpack'
 export { Configuration as DevServerConfiguration } from 'webpack-dev-server'
 
-
 export interface RunnerInput {
   config: string
   cwd: string
@@ -63,7 +62,8 @@ export type ExternalWebpackConfig = WebpackConfig | WebpackConfig[]
 export type WorkerInput = Required<Pick<RunnerInput, 'workerFile' | 'watch' | 'cwd' | 'config'>>
 
 export interface WebpackWorkerInput {
-  path: string
+  config: string
+  processCwd: string
   workerIndex: number
   watch: boolean
 }
