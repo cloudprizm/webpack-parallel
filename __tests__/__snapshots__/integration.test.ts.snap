@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`full run test 1`] = `
+Array [
+  Object {
+    "action": "end",
+    "errors": Array [],
+    "filteredModules": 1,
+    "id": 0,
+    "idx": 0,
+    "modules": Array [],
+    "name": "C0",
+    "pid": 0,
+    "warnings": Array [],
+  },
+  Object {
+    "action": "end",
+    "errors": Array [],
+    "filteredModules": 1,
+    "id": 1,
+    "idx": 1,
+    "modules": Array [],
+    "name": "C1",
+    "pid": 1,
+    "warnings": Array [],
+  },
+]
+`;

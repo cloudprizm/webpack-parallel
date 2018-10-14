@@ -24,13 +24,11 @@ import {
   Log,
   WatchPayload,
   resolveConfigFromFileWithNames,
+  noErrorsInStats,
 } from './worker-actions'
 
 
-const closeWorkers = (workers: ChildProcess[]) => {
-  workers.forEach(w => w.kill())
-  process.exit()
-}
+const closeWorkers = (workers: ChildProcess[]) => workers.forEach(w => w.kill())
 
 const pipeToSubject = (stream: Readable, extras: { [key in string]: any }) => {
   const stream$ = new Subject()
@@ -104,10 +102,10 @@ const connectToWorkers =
       ]]
     }
 
-process.on('SIGINT', () => process.exit())
+process.on('SIGINT', () => process.exit(0))
 
 export const runWebpackConfigs =
-  ({ config, workerFile, watch, fullReport, silent, cwd }: RunnerInput) =>
+  ({ config, workerFile, watch, fullReport, silent, cwd }: RunnerInput): Promise<EndPayload[]> =>
     resolveConfigFromFileWithNames(config)
       .then(resolvedConfigs => {
         const workers = (values(resolvedConfigs) as WebpackConfig[]).map(runWorker({ config, workerFile, watch, cwd }))
@@ -138,18 +136,20 @@ export const runWebpackConfigs =
           enableRecentActivity={!silent}
         />)
 
-        const killUs = () => {
+        const killUs = (exitCode: number = 0) => {
           closeWorkers(workers)
           unmount()
+          process.exit(exitCode)
         }
 
-        process.on('SIGINT', () => {
-          process.exit()
-          killUs()
-        })
+        process.on('SIGINT', () => killUs(0))
 
-        return workersEnds$.toPromise()
-          .then(killUs)
+        return workersEnds$
+          .toPromise()
+          .then((stats) => {
+            setImmediate(() => killUs(noErrorsInStats(stats) ? 0 : 1))
+            return stats
+          })
       })
 
 export const webpackRunCommand = {

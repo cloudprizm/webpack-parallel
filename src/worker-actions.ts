@@ -1,5 +1,19 @@
 import { Configuration as WebpackConfig } from 'webpack'
-import { range, toPairs, map, pipe, view, lensIndex, zip, fromPairs, KeyValuePair } from 'ramda'
+import {
+  all,
+  equals,
+  length,
+  prop,
+  range,
+  toPairs,
+  map,
+  pipe,
+  view,
+  lensIndex,
+  zip,
+  fromPairs,
+  KeyValuePair,
+} from 'ramda'
 
 export enum Action {
   start = 'start',
@@ -101,3 +115,13 @@ export const resolveConfigFromFileWithNames = (configPath: string): Promise<Conf
 export const resolveConfigFromFile = (configPath: string): Promise<WebpackConfig[]> =>
   resolveConfigFromFileWithNames(configPath)
     .then(pipe(toPairs, map(second)))
+
+export const errorsCount = pipe(
+  prop<'errors', string[]>('errors'),
+  length,
+)
+
+export const noErrorsInStats: (input: EndPayload[]) => boolean = pipe(
+  map(errorsCount),
+  all(equals(0))
+)
