@@ -10,14 +10,15 @@ import {
   WebpackWorkerInput,
   EndPayload,
   WatchPayload,
-  ProgressPayload
+  ProgressPayload,
+  resolveConfigFromFile,
 } from './worker-actions'
 
 const sendMessage = (msg: Array<Partial<GenericAction>>) => ((process as unknown) as Worker).send(msg)
 
 const mkProgressPayload =
   (percent?: number, message?: string, step?: string, active?: string, moduleName?: string): Partial<ProgressPayload> =>
-    ({ percent, message, step, active, moduleName, action: Action.progress })
+    ({ percent, message, step, active, action: Action.progress })
 
 const mkEndPayload = (stats = {}): Partial<EndPayload> =>
   ({ ...stats, action: Action.end })
@@ -37,25 +38,6 @@ const notifyAboutSomethingUnexpected = (error: Error) => {
   })
 }
 
-const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res) => {
-  const { progress, watcher: end, all } = getStreamsForwarders<ProgressPayload, EndPayload>()
-  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
-
-  if (!config.plugins) config.plugins = []
-
-  config.plugins.push(new webpack.ProgressPlugin((...args) =>
-    progress.next(mkProgressPayload(...args))
-  ))
-
-  webpack(config)
-    .run((err, stats) => {
-      if (err) throw err
-      end.next(mkEndPayload(stats.toJson('minimal'))) // cool error!
-      subscriber.unsubscribe()
-      res()
-    })
-})
-
 const progressCompare = (a: Partial<ProgressPayload>, b: Partial<ProgressPayload>) =>
   a.percent === b.percent && a.step === b.step && a.message === b.message
 
@@ -74,7 +56,28 @@ const getStreamsForwarders = <K, T>() => {
   }
 }
 
-const runAsWatcher = (config: WebpackConfig) => new Promise(() => {
+const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res, rej) => {
+  const { progress, watcher: end, all } = getStreamsForwarders<ProgressPayload, EndPayload>()
+  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
+
+  if (!config.plugins) config.plugins = []
+
+  config.plugins.push(new webpack.ProgressPlugin((...args) => {
+    progress.next(mkProgressPayload(...args))
+  }
+  ))
+
+  webpack(config)
+    .run((err, stats) => {
+      if (err) return rej(err)
+      end.next(mkEndPayload(stats.toJson('minimal')))
+
+      res(stats)
+      setImmediate(subscriber.unsubscribe)
+    })
+})
+
+const runAsWatcher = (config: WebpackConfig) => new Promise((res, rej) => {
   config.watch = true
   const watchOptions = {
     aggregateTimeout: 500,
@@ -91,24 +94,22 @@ const runAsWatcher = (config: WebpackConfig) => new Promise(() => {
 
   webpack(config)
     .watch(watchOptions, (err, stats) => {
-      if (err) throw err
+      if (err) rej(err)
 
       progress.next(mkProgressPayload(1, 'done'))
       watcher.next(mkWatchPayload(stats.toJson('minimal')))
-      subscriber.unsubscribe()
+
+      res(stats)
+      setImmediate(subscriber.unsubscribe)
     })
 })
 
 export const runWebpack = ({ config, workerIndex, watch }: WebpackWorkerInput) => {
-  const configs = require(config)
-  const isPromise = !!configs.default.then
-  const promiseRun = isPromise ? configs.default : Promise.resolve(configs.default)
-
   process
     .on('unhandledRejection', notifyAboutSomethingUnexpected)
     .on('uncaughtException', notifyAboutSomethingUnexpected)
 
-  return promiseRun
+  return resolveConfigFromFile(config)
     .then((configs: WebpackConfig[]) => configs[workerIndex])
     .then((config: WebpackConfig) => watch ? runAsWatcher(config) : runAsSingleCompilation(config))
 }

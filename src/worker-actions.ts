@@ -67,3 +67,10 @@ export interface WebpackWorkerInput {
   workerIndex: number
   watch: boolean
 }
+
+export const resolveConfigFromFile = (configPath: string): Promise<WebpackConfig[]> => {
+  const config = require(configPath)
+  const isPromise = !!config.default.then
+  return (isPromise ? config.default : Promise.resolve(config.default))
+    .then((c: ExternalWebpackConfig) => Array.isArray(c) ? c : [c])
+}

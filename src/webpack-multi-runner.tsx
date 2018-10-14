@@ -17,7 +17,7 @@ import {
   WebpackConfig,
   GenericAction,
   RunnerInput,
-  ExternalWebpackConfig,
+  resolveConfigFromFile,
   WorkerInput,
   ProgressPayload,
   EndPayload,
@@ -28,13 +28,6 @@ import {
 const isArray = Array.isArray
 
 type WebpackCommandInput = RunnerInput
-
-export const resolveConfigFromFile = (configPath: string): Promise<WebpackConfig[]> => {
-  const config = require(configPath)
-  const isPromise = !!config.default.then
-  return (isPromise ? config.default : Promise.resolve(config.default))
-    .then((c: ExternalWebpackConfig) => isArray(c) ? c : [c])
-}
 
 const closeWorkers = (workers: ChildProcess[]) => {
   workers.forEach(w => w.kill())
@@ -66,6 +59,12 @@ const runWorker = ({ config: configPath, workerFile, watch, cwd }: WorkerInput) 
       })
 
 type WorkerEvents = GenericAction[]
+
+const getAction = propEq('action')
+
+const getLastFromStream = (action: string) =>
+  map((arr: WorkerEvents) => last(arr.filter(getAction(action))))
+
 const connectToWorkers = (worker: ChildProcess, idx: number) => {
   const workerDetails = { id: idx, idx, pid: worker.pid }
   const workerOut$ = fromEvent(worker, 'message').pipe(
@@ -73,17 +72,13 @@ const connectToWorkers = (worker: ChildProcess, idx: number) => {
     map((events: WorkerEvents) => events.map(event => ({ ...event, ...workerDetails }))),
   )
 
-  const getAction = propEq('action')
   const _logs$ = pipeToSubject(worker.stdout, { type: 'log', ...workerDetails })
   const _errors$ = pipeToSubject(worker.stderr, { type: 'error', ...workerDetails })
 
-  const getLast = (action: string) =>
-    map((arr: WorkerEvents) => last(arr.filter(() => getAction(action))))
-
-  const _start$ = workerOut$.pipe(getLast(Action.start), filter(Boolean))
-  const _end$ = workerOut$.pipe(getLast(Action.end), filter(Boolean))
-  const _watch$ = workerOut$.pipe(getLast(Action.watch), filter(Boolean))
-  const _progress$ = workerOut$.pipe(getLast(Action.progress), filter(Boolean))
+  const _start$ = workerOut$.pipe(getLastFromStream(Action.start), filter(Boolean))
+  const _end$ = workerOut$.pipe(getLastFromStream(Action.end), filter(Boolean))
+  const _watch$ = workerOut$.pipe(getLastFromStream(Action.watch), filter(Boolean))
+  const _progress$ = workerOut$.pipe(getLastFromStream(Action.progress), filter(Boolean))
 
   const elapsed = process.hrtime()
 
