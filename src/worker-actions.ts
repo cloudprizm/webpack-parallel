@@ -65,7 +65,6 @@ export interface WatchPayload extends GenericAction, MinimalStats {
 }
 
 export { Configuration as WebpackConfig, Stats } from 'webpack'
-export { Configuration as DevServerConfiguration } from 'webpack-dev-server'
 
 export interface RunnerInput {
   config: string
