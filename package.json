@@ -48,7 +48,7 @@
     "webpack-parallel": "./bin/webpack-parallel.ts"
   },
   "dependencies": {
-    "@hungry/babel-preset-cli": "^0.0.2",
+    "@hungry/babel-preset-cli": "~0.0.3",
     "chalk": "^2.4.1",
     "debug": "^4.1.0",
     "figlet": "^1.2.0",
@@ -65,7 +65,7 @@
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
-    "@hungry/webpack-parts": "^0.0.2",
+    "@hungry/webpack-parts": "~0.0.4",
     "babel-jest": "^23.6.0",
     "concurrently": "^4.0.1",
     "jest": "^23.6.0",
