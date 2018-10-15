@@ -103,7 +103,7 @@ const WaitingForWorkers = () =>
   </div>
 
 const getTitle = ({ title, stats }: { stats: AnnotatedByMaster } & WithTitle) =>
-  `${title || 'Worker stats'}: ${stats.name ? `${stats.name.toUpperCase()},` : ""} id: ${stats.id}, pid: ${stats.pid}`
+  `${title || 'Worker stats'}: ${stats.name ? `${stats.name.toUpperCase()},` : ''} id: ${stats.id}, pid: ${stats.pid}`
 
 const Stats = ({ stats, title }: WithStats & WithTitle) =>
   <div>{stats && stats.map(workerStats =>

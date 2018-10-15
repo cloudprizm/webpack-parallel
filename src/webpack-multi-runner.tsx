@@ -27,7 +27,6 @@ import {
   noErrorsInStats,
 } from './worker-actions'
 
-
 const closeWorkers = (workers: ChildProcess[]) => workers.forEach(w => w.kill())
 
 const pipeToSubject = (stream: Readable, extras: { [key in string]: any }) => {
@@ -53,7 +52,6 @@ const runWorker = ({ config: configPath, workerFile, watch, cwd }: WorkerInput) 
         env: process.env,
         stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
       })
-
 
 const getAction = propEq('action')
 
