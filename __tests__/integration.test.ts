@@ -1,12 +1,14 @@
 import { runWebpackConfigs } from "../dist"
 import { join, resolve } from "path"
-import { enableRuntimeTranspilation } from "@hungry/babel-preset-cli"
+import { bootstrap } from "@hungry/babel-preset-cli"
 
+const a = require('@hungry/babel-preset-cli')
+console.log('@@@@', Object.keys(a))
 const workerFile = join("../dist", "./worker-babel-wrapper.js")
 const exit = jest.spyOn(process, "exit").mockImplementation(n => n)
 
 test("full run test", done => {
-  const unhook = enableRuntimeTranspilation()
+  const unhook = bootstrap()
   const config = resolve(__dirname, "./fixtures/configs.ts")
 
   const compile = runWebpackConfigs({
