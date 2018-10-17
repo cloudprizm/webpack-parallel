@@ -73,16 +73,18 @@ export interface RunnerInput {
   fullReport: boolean
   watch: boolean
   silent: boolean
+  server: boolean
 }
 
 export type ExternalWebpackConfig = WebpackConfig | WebpackConfig[]
-export type WorkerInput = Required<Pick<RunnerInput, 'workerFile' | 'watch' | 'cwd' | 'config'>>
+export type WorkerInput = Required<Pick<RunnerInput, 'workerFile' | 'watch' | 'cwd' | 'config' | 'server'>>
 
 export interface WebpackWorkerInput {
   config: string
   processCwd: string
   workerIndex: number
   watch: boolean
+  server: boolean
 }
 
 export type Configs = KeyValuePair<string, WebpackConfig>

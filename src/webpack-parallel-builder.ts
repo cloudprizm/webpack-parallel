@@ -3,6 +3,7 @@ import { isEmpty, pipe } from 'ramda'
 import { interval, merge, Subject } from 'rxjs'
 import { buffer, distinctUntilChanged } from 'rxjs/operators'
 import { Worker } from 'cluster'
+import Server from 'webpack-dev-server/lib/Server'
 import {
   Action,
   WebpackConfig,
@@ -104,12 +105,38 @@ const runAsWatcher = (config: WebpackConfig) => new Promise((res, rej) => {
     })
 })
 
-export const runWebpack = ({ config, workerIndex, watch }: WebpackWorkerInput) => {
-  process
-    .on('unhandledRejection', notifyAboutSomethingUnexpected)
-    .on('uncaughtException', notifyAboutSomethingUnexpected)
+const runAsServer = (config: WebpackConfig) => new Promise((res, rej) => {
+  const { progress, watcher: end, all } = getStreamsForwarders<ProgressPayload, EndPayload>()
+  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
 
-  return resolveConfigFromFile(config)
+  if (!config.plugins) config.plugins = []
+
+  config.plugins.push(new webpack.ProgressPlugin((...args) =>
+    progress.next(mkProgressPayload(...args))
+  ))
+
+  const compiler = webpack(config)
+  const server = new Server(compiler)
+
+  server.listen(9999, 'localhost', (err) => {
+    console.log('@@@', err)
+    if (err) {
+      throw err
+    }
+  })
+})
+
+process
+  .on('unhandledRejection', notifyAboutSomethingUnexpected)
+  .on('uncaughtException', notifyAboutSomethingUnexpected)
+
+export const runWebpack = ({ config, workerIndex, watch, server }: WebpackWorkerInput) =>
+  resolveConfigFromFile(config)
     .then((configs: WebpackConfig[]) => configs[workerIndex])
-    .then((config: WebpackConfig) => watch ? runAsWatcher(config) : runAsSingleCompilation(config))
-}
+    .then((config: WebpackConfig) =>
+      watch
+        ? runAsWatcher(config)
+        : server
+          ? runAsServer(config)
+          : runAsSingleCompilation(config)
+    )
