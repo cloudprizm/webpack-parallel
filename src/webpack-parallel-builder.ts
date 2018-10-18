@@ -106,8 +106,9 @@ const runAsWatcher = (config: WebpackConfig) => new Promise((res, rej) => {
 })
 
 const runAsServer = (config: WebpackConfig) => new Promise((res, rej) => {
-  const { progress, watcher: end, all } = getStreamsForwarders<ProgressPayload, EndPayload>()
-  const subscriber = all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
+  config.watch = true
+  const { progress, all } = getStreamsForwarders<ProgressPayload, WatchPayload>()
+  all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
 
   if (!config.plugins) config.plugins = []
 
@@ -119,7 +120,7 @@ const runAsServer = (config: WebpackConfig) => new Promise((res, rej) => {
   const server = new Server(compiler)
 
   server.listen(9999, 'localhost', (err) => {
-    console.log('@@@', err)
+    console.log('running server', err)
     if (err) {
       throw err
     }
@@ -134,9 +135,9 @@ export const runWebpack = ({ config, workerIndex, watch, server }: WebpackWorker
   resolveConfigFromFile(config)
     .then((configs: WebpackConfig[]) => configs[workerIndex])
     .then((config: WebpackConfig) =>
-      watch
-        ? runAsWatcher(config)
-        : server
-          ? runAsServer(config)
-          : runAsSingleCompilation(config)
+      !watch
+        ? runAsSingleCompilation(config)
+        : isEmpty(config.devServer)
+          ? runAsWatcher(config)
+          : runAsServer(config)
     )
