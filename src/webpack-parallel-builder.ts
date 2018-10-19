@@ -158,7 +158,7 @@ export const runWebpack = ({ config: inputConfig, workerIndex, watch }: WebpackW
     .then((config: WebpackConfig) =>
       !watch
         ? runAsSingleCompilation(config)
-        : !config.devServer && isEmpty(config.devServer)
+        : !config.devServer || isEmpty(config.devServer)
           ? runAsWatcher(config)
           : runAsServer(config as WithDevServer)
     )
