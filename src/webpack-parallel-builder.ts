@@ -4,16 +4,20 @@ import { interval, merge, Subject } from 'rxjs'
 import { buffer, distinctUntilChanged } from 'rxjs/operators'
 import { Worker } from 'cluster'
 import Server from 'webpack-dev-server/lib/Server'
+import { Overwrite } from 'utility-types'
 import {
   Action,
   WebpackConfig,
   GenericAction,
   WebpackWorkerInput,
+  getFreePort,
   EndPayload,
   WatchPayload,
   ProgressPayload,
   resolveConfigFromFile,
 } from './worker-actions'
+
+import { withDevServerPort } from '@hungry/webpack-parts'
 
 const sendMessage = (msg: Array<Partial<GenericAction>>) => ((process as unknown) as Worker).send(msg)
 
@@ -105,27 +109,44 @@ const runAsWatcher = (config: WebpackConfig) => new Promise((res, rej) => {
     })
 })
 
-const runAsServer = (config: WebpackConfig) => new Promise((res, rej) => {
-  config.watch = true
-  const { progress, all } = getStreamsForwarders<ProgressPayload, WatchPayload>()
-  all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
+type WebpackDevServer = Required<Pick<WebpackConfig, 'devServer'>>
+type WithDevServer = Overwrite<WebpackConfig, WebpackDevServer>
 
-  if (!config.plugins) config.plugins = []
+const getPortIfNotDefined = (config: WithDevServer) =>
+  Promise.resolve<WithDevServer>(
+    config.devServer.port
+      ? config
+      // TODO think about fliping args to make this cleaner
+      : getFreePort().then(ports =>
+        withDevServerPort.set(ports[0])(config) as WithDevServer
+      )
+  )
 
-  config.plugins.push(new webpack.ProgressPlugin((...args) =>
-    progress.next(mkProgressPayload(...args))
-  ))
+const runAsServer = (input: WithDevServer) =>
+  getPortIfNotDefined(input)
+    .then(config => new Promise((res, rej) => {
+      config.watch = true
+      const { progress, all } = getStreamsForwarders<ProgressPayload, WatchPayload>()
+      all.subscribe((data: Array<Partial<GenericAction>>) => !isEmpty(data) && sendMessage(data))
 
-  const compiler = webpack(config)
-  const server = new Server(compiler)
+      if (!config.plugins) config.plugins = []
 
-  server.listen(9999, 'localhost', (err) => {
-    console.log('running server', err)
-    if (err) {
-      throw err
-    }
-  })
-})
+      config.plugins.push(new webpack.ProgressPlugin((...args) =>
+        progress.next(mkProgressPayload(...args))
+      ))
+
+      const compiler = webpack(config)
+      const { port } = config.devServer
+      const server = new Server(compiler)
+
+      server.listen(port, 'localhost', (err) => {
+        console.log('running server', err)
+        if (err) {
+          throw err
+        }
+      })
+    })
+    )
 
 process
   .on('unhandledRejection', notifyAboutSomethingUnexpected)
@@ -137,7 +158,7 @@ export const runWebpack = ({ config, workerIndex, watch, server }: WebpackWorker
     .then((config: WebpackConfig) =>
       !watch
         ? runAsSingleCompilation(config)
-        : isEmpty(config.devServer)
+        : !config.devServer && isEmpty(config.devServer)
           ? runAsWatcher(config)
-          : runAsServer(config)
+          : runAsServer(config as WithDevServer)
     )

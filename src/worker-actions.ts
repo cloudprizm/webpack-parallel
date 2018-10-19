@@ -3,6 +3,7 @@ import {
   all,
   equals,
   length,
+  Arity1Fn,
   prop,
   range,
   toPairs,
@@ -14,6 +15,8 @@ import {
   fromPairs,
   KeyValuePair,
 } from 'ramda'
+
+import findFreePort from 'find-free-port'
 
 export enum Action {
   start = 'start',
@@ -126,3 +129,13 @@ export const noErrorsInStats: (input: EndPayload[]) => boolean = pipe(
   map(errorsCount),
   all(equals(0))
 )
+
+export const enableProcessKillers =
+  (dieOn = ['SIGINT', 'SIGTERM']) =>
+    (whenItHappen: Arity1Fn) =>
+      dieOn.forEach(signal => () => whenItHappen(signal))
+
+const localhost = { port: 8000, host: '127.0.0.1' }
+export const getFreePort =
+  ({ port, host }: { port?: number, host?: string } = localhost): Promise<number[]> =>
+    findFreePort(port)
