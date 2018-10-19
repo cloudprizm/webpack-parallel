@@ -40,14 +40,13 @@ const pipeToSubject = (stream: Readable, extras: { [key in string]: any }) => {
   return stream$
 }
 
-const runWorker = ({ config: configPath, workerFile, watch, cwd, server }: WorkerInput) =>
+const runWorker = ({ config: configPath, workerFile, watch, cwd }: WorkerInput) =>
   (_: WebpackConfig, idx: number): ChildProcess =>
     fork(workerFile, ([
       '--config', configPath,
       '--worker-index', idx.toString(),
       '--process-cwd', cwd,
       watch && '--watch',
-      server && '--server'
     ] as ReadonlyArray<string>).filter(Boolean), {
         cwd,
         env: process.env,
@@ -104,11 +103,11 @@ const connectToWorkers =
 process.on('SIGINT', () => process.exit(0))
 
 export const runWebpackConfigs =
-  ({ config, workerFile, watch, fullReport, silent, cwd, server }: RunnerInput): Promise<EndPayload[]> =>
+  ({ config, workerFile, watch, fullReport, silent, cwd }: RunnerInput): Promise<EndPayload[]> =>
     resolveConfigFromFileWithNames(config)
       .then(resolvedConfigs =>
         (values(resolvedConfigs) as WebpackConfig[])
-          .map(runWorker({ config, workerFile, watch, cwd, server }))
+          .map(runWorker({ config, workerFile, watch, cwd }))
           .map(connectToWorkers(keys(resolvedConfigs) as string[]))
       )
       .then(workersWithStreams => {
@@ -161,7 +160,6 @@ export const webpackRunCommand = {
     fullReport: { default: false },
     silent: { default: false },
     watch: { default: false },
-    server: { default: false },
     runWorker: { default: [-1] } // TODO specify worker to run
   },
   handler: (args: RunnerInput) => {

@@ -152,8 +152,8 @@ process
   .on('unhandledRejection', notifyAboutSomethingUnexpected)
   .on('uncaughtException', notifyAboutSomethingUnexpected)
 
-export const runWebpack = ({ config, workerIndex, watch, server }: WebpackWorkerInput) =>
-  resolveConfigFromFile(config)
+export const runWebpack = ({ config: inputConfig, workerIndex, watch }: WebpackWorkerInput) =>
+  resolveConfigFromFile(inputConfig)
     .then((configs: WebpackConfig[]) => configs[workerIndex])
     .then((config: WebpackConfig) =>
       !watch
