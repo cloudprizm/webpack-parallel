@@ -150,6 +150,10 @@ export const runWebpackConfigs =
           })
       })
 
+// TODO to disable double transpilation for workers
+// better would be to create temp config
+// another benefit would be to filter out not needed config without
+// applying it within worker-builders
 export const webpackRunCommand = {
   command: 'webpack-parallel',
   describe: 'Run parallel webpack',

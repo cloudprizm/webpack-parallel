@@ -8,11 +8,18 @@ import ProgressBar from 'ink-progress-bar'
 import Spinner from 'ink-spinner'
 
 import { cond, ifElse, isEmpty, pipe, prop, sortBy, uniq } from 'ramda'
-import { combineLatest, empty, Observable, Subscription } from 'rxjs'
+import { combineLatest, Observable, Subscription } from 'rxjs'
 import { startWith } from 'rxjs/operators'
 import wrap from 'word-wrap'
 
-import { Log, AnnotatedByMaster, MinimalStats, ProgressPayload, WatchPayload } from './worker-actions'
+import {
+  Log,
+  AnnotatedByMaster,
+  MinimalStats,
+  ProgressPayload,
+  WatchPayload,
+  makeSafeStream,
+} from './worker-actions'
 
 const { h } = require('ink') // I dont like it but well ...
 const maxWidth = process.stdout.columns || 100
@@ -52,9 +59,9 @@ interface State {
   enableFullReport: boolean
   enableRecentActivity: boolean
   watch: boolean
-  watcherStats: MinimalStats[]
+  watcherStats: WatchPayload[]
   progress: ProgressPayload[]
-  stats?: MinimalStats[]
+  stats: MinimalStats[]
   allLogs: Log[]
   logs: Log[]
 }
@@ -187,9 +194,10 @@ const renderWatcherStats = cond([
   ]
 ])
 
-const makeSafeStream = (stream?: Observable<any>) => stream || empty()
 // TODO 
 // 1) add full log report when running with watcher - scrollable list
+export const clearScreen = () => process.stdout.write('\033c\033[3J')
+
 export class WorkersStatus extends Component<Props, State> implements InputStreams {
   public progress$: Observable<ProgressPayload[]>
   public watch$: Observable<WatchPayload[]>
@@ -208,20 +216,20 @@ export class WorkersStatus extends Component<Props, State> implements InputStrea
       watcherStats: [],
       progress: [],
       watch: !!props.watch,
-      stats: undefined,
+      stats: [],
       allLogs: [] as Log[],
       logs: [] as Log[]
     }
 
     this.progress$ = makeSafeStream(props.progress).pipe(startWith(defaults.progress))
-    this.stats$ = makeSafeStream(props.stats).pipe(startWith(defaults.stats))
     this.logs$ = makeSafeStream(props.logs).pipe(startWith(defaults.logs))
+    this.stats$ = makeSafeStream(props.stats).pipe(startWith(defaults.stats))
     this.watch$ = makeSafeStream(props.watch).pipe(startWith(defaults.watcherStats))
 
     this.state = { ...defaults }
   }
 
-  public render(props: Props, state: State) {
+  public render(state: State) {
     return <div>
       {renderWhen(state)}
       {renderRecentActivity(state)}

@@ -17,6 +17,7 @@ import {
 } from 'ramda'
 
 import findFreePort from 'find-free-port'
+import { Observable, empty } from 'rxjs'
 
 export enum Action {
   start = 'start',
@@ -137,3 +138,5 @@ const localhost = { port: 8000, host: '127.0.0.1' }
 export const getFreePort =
   ({ port, host }: { port?: number, host?: string } = localhost): Promise<number[]> =>
     findFreePort(port)
+
+export const makeSafeStream = <K>(stream?: Observable<K>): Observable<K> => stream || empty()
