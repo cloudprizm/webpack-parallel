@@ -394,10 +394,11 @@ export class Application extends Component<Props, ApplicationState> {
 
   public componentDidMount() {
     const stdin = process.stdin
-    // @ts-ignore
-    stdin.setRawMode(true)
-    stdin.setEncoding('utf8')
-    stdin.on('data', this.keyHandler)
+    if (stdin.setRawMode) {
+      stdin.setRawMode(true)
+      stdin.setEncoding('utf8')
+      stdin.on('data', this.keyHandler)
+    }
   }
 
   public componentWillUnmount() {
