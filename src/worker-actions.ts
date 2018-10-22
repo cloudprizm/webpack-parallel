@@ -137,6 +137,6 @@ export const enableProcessKillers =
 const localhost = { port: 8000, host: '127.0.0.1' }
 export const getFreePort =
   ({ port, host }: { port?: number, host?: string } = localhost): Promise<number[]> =>
-    findFreePort(port)
+    findFreePort(port, host)
 
 export const makeSafeStream = <K>(stream?: Observable<K>): Observable<K> => stream || empty()

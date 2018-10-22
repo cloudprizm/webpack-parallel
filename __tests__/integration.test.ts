@@ -1,4 +1,4 @@
-import { runWebpackConfigs } from '../dist'
+import { runWebpackConfigWithDefaultRenderer } from '../dist'
 import { join, resolve } from 'path'
 import { enableRuntimeTranspilation } from '@hungry/babel-preset-cli'
 
@@ -9,7 +9,7 @@ test('full run test', done => {
   const unhook = enableRuntimeTranspilation()
   const config = resolve(__dirname, './fixtures/configs.ts')
 
-  const compile = runWebpackConfigs({
+  const compile = runWebpackConfigWithDefaultRenderer({
     silent: true,
     watch: false,
     cwd: __dirname,
