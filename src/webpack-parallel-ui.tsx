@@ -117,8 +117,8 @@ const getTitle = ({ title, stats }: { stats: AnnotatedByMaster } & WithTitle) =>
   `${title || 'Worker stats'}: ${stats.name ? `${stats.name.toUpperCase()},` : ''} id: ${stats.id}, pid: ${stats.pid}`
 
 const Stats = ({ stats, title }: WithStats & WithTitle) =>
-  <div>{stats && stats.map(workerStats =>
-    <div>
+  <div>{stats && stats.map((workerStats, idx) =>
+    <div key={idx}>
       <Divider
         color={getColor(workerStats)}
         title={getTitle({ title, stats: workerStats })}
