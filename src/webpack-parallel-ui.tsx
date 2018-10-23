@@ -158,11 +158,7 @@ const RenderProgress = ({ progress }: WithProgress) =>
         <Divider
           color="green"
           title={getTitle({ stats: d })}
-          padding={1}
           width={defaultWidth}
-          alignItems="center"
-          justifyContent="space-around"
-          flexGrow={1}
         />
 
         <Box>
@@ -211,7 +207,7 @@ const FullReportFromRun = ({ logs }: WithLogs) => <div>
     flexGrow={1}
     padding={1}
   />
-  <div>{sortFullLogs(logs).map((log: Log) => <LogEntry log={log} />)}</div>
+  <div>{sortFullLogs(logs).map((log: Log, idx: number) => <LogEntry key={idx} log={log} />)}</div>
 </div>
 
 const renderRecentActivity = cond([
@@ -246,10 +242,6 @@ const ShortcutsView = () =>
       title="Shortcuts"
       color="green"
       width={defaultWidth}
-      padding={1}
-      renderDivider={({ title }) =>
-        <Color bgGreenBright black>{`--${title}--`}</Color>
-      }
     />
     {shortcuts.map(([shortcut, view, friendlyName], idx) =>
       <Box key={idx}>
@@ -327,11 +319,12 @@ export class RealTimeWorkerStatus extends MultiRunnerCLIView {
   private subscription?: Subscription
 
   public render() {
+    const { watch } = this.state
     return <div>
       {renderWhen(this.state)}
-      {renderRecentActivity(this.state)}
-      {renderWatcherStats(this.state)}
-      {!this.props.watch && renderFullReportAfterRun(this.state)}
+      {!watch && renderFullReportAfterRun(this.state)}
+      {watch && renderWatcherStats(this.state)}
+      {watch && renderRecentActivity(this.state)}
     </div>
   }
 
@@ -369,6 +362,7 @@ interface ApplicationState {
 // tslint:disable-next-line:max-classes-per-file
 export class Application extends Component<Props, ApplicationState> {
   public keyHandler
+  public watch
   public routerContext = {}
 
   constructor(props: Props) {
@@ -406,8 +400,9 @@ export class Application extends Component<Props, ApplicationState> {
   }
 
   public render() {
+    const { watch } = this.props
     return <div>
-      <ShortcutsView />
+      {watch && <ShortcutsView />}
       <StaticRouter
         location={this.state.currentView}
         context={this.routerContext}

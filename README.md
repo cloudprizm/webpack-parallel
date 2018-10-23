@@ -48,15 +48,15 @@ Options:
   --fullReport                                                  [default: false]
   --silent                                                      [default: false]
   --watch                                                       [default: false]
-  --runWorker                                                    [default: [-1]]
 ```
 
 ## How to use it
 It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hungry-consulting/webpack-parts) - composable, typesafe webpack config, however it is not necessary.
 
 ## Selling points
-* reliable error handling
 * compatible with `webpack` watch
+* compatible with `webpack-dev-server`
+* reliable error handling
 * exposed separate command for `yargs` if you've got already your custom command line tree
 * full report activity - sorted by worker id report from `stdin` and `stderr`
 * can connect any worker - there is an utility class provided for communication and wrapper to run any config based on `babel`
