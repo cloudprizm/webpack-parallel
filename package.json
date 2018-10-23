@@ -32,7 +32,7 @@
     "build:code": "babel src/** -d dist --extensions '.ts','.tsx'",
     "watch": "concurrently 'yarn build:declarations --watch' 'yarn build:code --watch'",
     "build": "concurrently 'yarn build:declarations' 'yarn build:code'",
-    "prepublish": "yarn test && yarn build"
+    "prepublish": "yarn build"
   },
   "publishConfig": {
     "access": "public"
