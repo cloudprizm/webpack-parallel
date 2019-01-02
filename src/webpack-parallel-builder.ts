@@ -3,7 +3,7 @@ import { isEmpty, pipe } from 'ramda'
 import { interval, merge, Subject } from 'rxjs'
 import { buffer, distinctUntilChanged } from 'rxjs/operators'
 import { Worker } from 'cluster'
-import Server from 'webpack-dev-server/lib/Server'
+import Server from 'webpack-dev-server'
 import { Overwrite } from 'utility-types'
 import {
   Action,
@@ -135,15 +135,15 @@ const runAsServer = (input: WithDevServer) =>
         progress.next(mkProgressPayload(...args))
       ))
 
+      const { port, host } = config.devServer
       const compiler = webpack(config)
-      const { port } = config.devServer
-      const server = new Server(compiler)
+      const server = new Server(compiler, config.devServer)
 
-      server.listen(port, 'localhost', (err) => {
-        console.log('running server', err)
-        if (err) {
-          throw err
-        }
+      process.on('SIGINT', () => server.close())
+
+      server.listen(port as number, host as string, (err?: Error) => {
+        process.stdout.write(`Running server, http://${host}:${port}`)
+        if (err) throw err
       })
     })
     )

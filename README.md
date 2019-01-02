@@ -55,7 +55,7 @@ It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hung
 
 ## Selling points
 * compatible with `webpack` watch
-* compatible with `webpack-dev-server`
+* compatible with `webpack-dev-server` and `hmr`
 * reliable error handling
 * exposed separate command for `yargs` if you've got already your custom command line tree
 * full report activity - sorted by worker id report from `stdin` and `stderr`
@@ -63,4 +63,4 @@ It is used in conjunction with [`@hungry/webpack-parts`](https://github.com/hung
 * full control over pipes and rendering phase - if you want to help me extend it
 
 ## Motivation
-There is couple of implementation of parallel building for webpack, however I wanted to provide something dev oriented with correct error reporting without hacks.
+There is couple of implementation of parallel building for webpack, however I wanted to provide something dev oriented with clear error reporting when there is spawned many of concurrent builds.

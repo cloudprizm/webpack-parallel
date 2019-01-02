@@ -3,7 +3,7 @@ import { Box, Text, Color } from 'ink'
 import { Divider, ProgressBar } from '@hungry/ink-components'
 
 import { Route } from 'react-router-dom'
-import { StaticRouter } from 'react-router'
+import { StaticRouter, Switch } from 'react-router'
 
 import chalk from 'chalk'
 
@@ -51,7 +51,9 @@ interface Props {
   progress?: ProgressStream
   watch?: WatchStream
   logs?: LogsStream
+  allLogs?: LogsStream
   stats?: StatsStream
+  onClose?: (exitCode?: number) => void
 }
 
 export enum View {
@@ -226,8 +228,8 @@ const renderWatcherStats = cond([
 ])
 
 const shortcuts = [
-  ['I', View.index, 'Realtime workers progress'],
-  ['A', View.activityView, 'Realtime logs Activity']
+  ['I', View.index, '- workers progress'],
+  ['A', View.activityView, '- workers activity']
 ]
 
 const shortcutsMatcher = cond(
@@ -254,10 +256,11 @@ const ShortcutsView = () =>
 export const clearScreen = () => process.stdout.write('\x1Bc')
 
 // tslint:disable-next-line:max-classes-per-file
-export class MultiRunnerCLIView extends Component<Props, State> implements InputStreams {
+export class MultiRunnerCLIView extends Component<Props, Partial<State>> implements InputStreams {
   public progress$: Observable<ProgressPayload[]>
   public watch$: Observable<WatchPayload[]>
   public logs$: Observable<Log[]>
+  public allLogs$: Observable<Log[]>
   public stats$: Observable<MinimalStats[]>
   public state: State
 
@@ -279,6 +282,7 @@ export class MultiRunnerCLIView extends Component<Props, State> implements Input
     this.logs$ = makeSafeStream(props.logs).pipe(startWith(defaults.logs))
     this.stats$ = makeSafeStream(props.stats).pipe(startWith(defaults.stats))
     this.watch$ = makeSafeStream(props.watch).pipe(startWith(defaults.watcherStats))
+    this.allLogs$ = makeSafeStream(props.allLogs).pipe(startWith(defaults.allLogs))
 
     this.state = { ...defaults }
   }
@@ -293,20 +297,9 @@ export class FullLogsView extends MultiRunnerCLIView {
   }
 
   public componentDidMount() {
-    const inputs = combineLatest(
-      this.logs$,
+    this.subscription = this.allLogs$.subscribe((logs) =>
+      this.setState({ allLogs: logs })
     )
-
-    const connect = inputs.subscribe(([logs]) => {
-      // @ts-ignore - workaround -> not sure why tsc is not happy about this - setState is missing
-      const setState = this.setState.bind(this)
-      setState({
-        logs,
-        allLogs: this.state.allLogs.concat(logs),
-      })
-    })
-
-    this.subscription = connect
   }
 
   public componentWillUnmount() {
@@ -361,8 +354,7 @@ interface ApplicationState {
 }
 // tslint:disable-next-line:max-classes-per-file
 export class Application extends Component<Props, ApplicationState> {
-  public keyHandler
-  public watch
+  public keyHandler: (...args: any[]) => void
   public routerContext = {}
 
   constructor(props: Props) {
@@ -374,7 +366,9 @@ export class Application extends Component<Props, ApplicationState> {
   }
 
   public onKeyPress(key: string) {
-    if (key === '\x03') process.exit(0)
+    if (key === '\x03') {
+      this.props.onClose ? this.props.onClose() : process.exit(0)
+    }
     this.setState({ currentView: shortcutsMatcher(key) })
   }
 
@@ -405,17 +399,19 @@ export class Application extends Component<Props, ApplicationState> {
       {watch && <ShortcutsView />}
       <StaticRouter
         location={this.state.currentView}
-        context={this.routerContext}
-      ><>
+        context={{ url: this.state.currentView }}
+      ><Switch>
           <Route
             path={View.index}
+            exact
             component={() => <RealTimeWorkerStatus {...this.props} />}
           />
           <Route
             path={View.activityView}
+            exact
             component={() => <FullLogsView {...this.props} />}
           />
-        </>
+        </Switch>
       </StaticRouter>
     </div>
   }

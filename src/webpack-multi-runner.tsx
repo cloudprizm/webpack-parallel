@@ -6,7 +6,7 @@ import { Readable, Transform } from 'stream'
 
 import { join, resolve } from 'path'
 import { combineLatest, fromEvent, Observable, ReplaySubject } from 'rxjs'
-import { filter, map, merge, startWith, take, shareReplay } from 'rxjs/operators'
+import { filter, map, merge, startWith, take, shareReplay, share, scan } from 'rxjs/operators'
 
 import { values, keys, last, propEq } from 'ramda'
 
@@ -26,10 +26,10 @@ import {
   noErrorsInStats,
 } from './worker-actions'
 
-const closeWorkers = (workers: ChildProcess[]) => workers.forEach(w => w.kill())
+const closeWorkers = (workers: ChildProcess[]) => workers.forEach(w => w.kill('SIGINT'))
 
 const pipeToSubject = (stream: Readable, extras: { [key in string]: any }) => {
-  const stream$ = new ReplaySubject(1)
+  const stream$ = new ReplaySubject(10)
   stream.pipe(new Transform({
     transform: (data, _, next) => {
       stream$.next({ data: data.toString(), ...extras })
@@ -111,7 +111,8 @@ const connectToWorkers =
           merge(_errors$),
           startWith({ ...workerDetails, type: 'log', data: 'doing hard work for you... ' }),
           merge(_end$.pipe(map(() =>
-            ({ ...workerDetails, type: 'log', data: `finished after: ${process.hrtime(elapsed)}` }))))
+            ({ ...workerDetails, type: 'log', data: `finished after: ${process.hrtime(elapsed)}` })))),
+          share()
         ),
         _watch$,
         _start$,
@@ -144,22 +145,32 @@ export const runWebpackConfigs =
           const watchStreams = streams.map(([_, __, ___, watcher]) => watcher)
           const workersWatch$ = combineLatest<WatchPayload[]>(watchStreams)
 
-          const unmount = render(<Component
-            progress={workersProgress$}
-            stats={workersEnds$}
-            watch={watch ? workersWatch$ : undefined}
-            logs={logs$}
-            enableFullReport={fullReport}
-            enableRecentActivity={!silent}
-          />)
-
           const killUs = (exitCode: number = 0) => {
             closeWorkers(workers)
             unmount()
             process.exit(exitCode)
           }
 
-          process.on('SIGINT', () => killUs(0))
+          const allLogs$ =
+            logs$
+              .pipe(
+                scan((acc, val) => acc.concat(val), [] as Log[]),
+                take(100),
+                shareReplay(1))
+
+          const unmount = render(<Component
+            progress={workersProgress$}
+            stats={workersEnds$}
+            watch={watch ? workersWatch$ : undefined}
+            allLogs={allLogs$}
+            logs={logs$}
+            onClose={() => killUs()}
+            enableFullReport={fullReport}
+            enableRecentActivity={!silent}
+          />)
+
+          // ink is in charge of exiting the process
+          // process.on('SIGINT', () => killUs(0))
 
           return workersEnds$
             .toPromise()
