@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/hungry-consulting/webpack-parallel
 	branch = master
-	commit = 74a5c81a9da06d10fc49e3e68233b2316ff6bcba
-	parent = 33b9b42abdd35c06c14b83caa4273a5fc94f36ea
+	commit = dff72c591923802fe6090b0f3be9bfea76af6126
+	parent = 737901988cce438e42a735bcfaa4bd301ac4fcac
 	cmdver = 0.4.0
 	method = merge
