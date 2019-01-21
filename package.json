@@ -1,6 +1,6 @@
 {
   "name": "@hungry/webpack-parallel",
-  "version": "0.2.0",
+  "version": "0.1.2",
   "description": "Dev friendly webpack builder and watcher",
   "keywords": [
     "webpack",
