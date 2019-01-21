@@ -1,6 +1,6 @@
 {
   "name": "@hungry/webpack-parallel",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Dev friendly webpack builder and watcher",
   "keywords": [
     "webpack",
@@ -48,7 +48,7 @@
     "webpack-parallel": "./bin/webpack-parallel.ts"
   },
   "dependencies": {
-    "@hungry/babel-preset-cli": "^0.1.2",
+    "@hungry/babel-preset-cli": "^0.1.3",
     "@hungry/ink-components": "^0.1.2",
     "chalk": "^2.4.1",
     "debug": "^4.1.0",
