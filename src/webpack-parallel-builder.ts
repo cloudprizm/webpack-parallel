@@ -78,7 +78,7 @@ const runAsSingleCompilation = (config: WebpackConfig) => new Promise((res, rej)
       end.next(mkEndPayload(stats.toJson('minimal')))
 
       res(stats)
-      setImmediate(subscriber.unsubscribe)
+      // setImmediate(subscriber.unsubscribe)
     })
 })
 
@@ -105,7 +105,7 @@ const runAsWatcher = (config: WebpackConfig) => new Promise((res, rej) => {
       watcher.next(mkWatchPayload(stats.toJson('minimal')))
 
       res(stats)
-      setImmediate(subscriber.unsubscribe)
+      // setImmediate(subscriber.unsubscribe)
     })
 })
 
